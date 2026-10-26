@@ -12,3 +12,8 @@ def get_db():
         yield db
     finally:
         db.close()
+    engine = create_engine(
+        get_settings().database_url,
+        pool_pre_ping=True,
+        connect_args={"connect_timeout": 5},
+    )

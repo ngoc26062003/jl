@@ -37,6 +37,7 @@ class Lesson(Base, TimestampMixin):
     objective: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="draft")  # draft|published|hidden|archived
     version: Mapped[int] = mapped_column(Integer, default=1)
+    position: Mapped[int] = mapped_column(Integer, default=0)
 
     category: Mapped[Category] = relationship(back_populates="lessons")
     questions: Mapped[list["Question"]] = relationship(
