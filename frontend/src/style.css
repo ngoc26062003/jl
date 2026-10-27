@@ -1,0 +1,14 @@
+:root { --bg:#fafaf7; --fg:#1f2430; --accent:#c8372d; --card:#fff; --border:#e5e2da; color-scheme: light dark; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#16181d; --fg:#e8e8e8; --card:#1f232b; --border:#2c313b; }
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font-family: system-ui, "Noto Sans JP", sans-serif; }
+a { color: var(--accent); text-decoration: none; }
+.topbar { display:flex; justify-content:space-between; align-items:center; padding:12px 24px; border-bottom:1px solid var(--border); }
+.topbar nav { display:flex; gap:16px; }
+.brand { font-weight:700; font-size:1.2rem; }
+.container { max-width:960px; margin:0 auto; padding:24px; }
+.cards { list-style:none; padding:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:16px; }
+.error { color:#d33; }
