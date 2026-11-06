@@ -10,6 +10,12 @@ export const router = createRouter({
       children: [
         { path: '', name: 'home', component: () => import('@/views/HomeView.vue') },
         { path: 'lessons', name: 'lessons', component: () => import('@/views/LessonsView.vue') },
+        { path: '/lessons/:id/quiz', component: () => import('../views/QuizView.vue') },
+        { path: '/alphabet', name: 'alphabet', component: () => import('@/views/AlphabetView.vue') },
+      
+        { path: '/practice', component: () => import('../views/PracticeHubView.vue') },
+        { path: '/practice/session', component: () => import('../views/PracticeSessionView.vue') },
+        { path: '/lessons', redirect: '/practice' },
       ],
     },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') },

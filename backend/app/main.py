@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 
+from app.api import practice
 from app.api.v1 import lessons
 
 app = FastAPI(title="JL API")
 app.include_router(lessons.router, prefix="/api/v1")
+app.include_router(practice.router, prefix="/api/v1")
 
 
 @app.get("/health")
