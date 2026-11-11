@@ -54,7 +54,7 @@ Import the repository into Vercel with `frontend` as the Root Directory. Vercel 
 VITE_API_BASE_URL=https://jl-japanese-learning.fly.dev/api/v1
 ```
 
-For local frontend development, `frontend/.env.example` contains the same public API URL; `frontend/.env` is local-only and ignored by Git. Redeploy the frontend after changing Vercel environment variables. The API URL is embedded at build time.
+`frontend/.env.production` contains the public Fly API URL used by Vercel builds. For local frontend development, copy the value from `frontend/.env.example` into the ignored `frontend/.env`. The API URL is public and embedded in the built client.
 
 ## Tiến độ
 - [x] Bước 1: logic chấm bài + test
