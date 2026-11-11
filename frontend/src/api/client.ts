@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 export const api = axios.create({
-  baseURL: '/api/v1', // đi qua Vite proxy -> localhost:8000
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   timeout: 10_000,
 })
 

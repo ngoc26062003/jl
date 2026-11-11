@@ -23,7 +23,9 @@ from app.core.config import get_settings
 from app.db.base import Base
 import app.models  # noqa: F401  (để Alembic thấy các model)
 
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+config.set_main_option(
+    "sqlalchemy.url", get_settings().database_url.replace("%", "%%")
+)
 from app.models import practice
 target_metadata = Base.metadata
 # other values from the config, defined by the needs of env.py,
