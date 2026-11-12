@@ -31,6 +31,10 @@ class LessonOut(BaseModel):
     position: int
 
 
+class LessonDetailOut(LessonOut):
+    content: dict | None = None
+
+
 class LessonPage(BaseModel):
     items: list[LessonOut]
     total: int

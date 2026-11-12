@@ -1,6 +1,11 @@
 export interface Lesson {
   id: number | string
+  slug?: string
   title?: string
+  lesson_type?: string
+  level?: string | null
+  objective?: string | null
+  position?: number
   [key: string]: unknown
 }
 

@@ -6,8 +6,9 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.db.session import get_db
-from app.models import Category, Lesson, Question
-from app.schemas import LessonOut, LessonPage, QuestionOut
+from app.models import Category, Lesson, Question, QuestionOption
+from app.schemas import LessonDetailOut, LessonOut, LessonPage, QuestionOut
+from app.schemas.lesson_answers import LessonAnswerIn, LessonAnswerOut
 
 router = APIRouter(prefix="/lessons", tags=["lessons"])
 
@@ -45,7 +46,7 @@ def list_lessons(
     return {"items": items, "total": total, "limit": limit, "offset": offset}
 
 
-@router.get("/{lesson_id}", response_model=LessonOut)
+@router.get("/{lesson_id}", response_model=LessonDetailOut)
 def get_lesson(lesson_id: UUID, db: Session = Depends(get_db)):
     return _get_published_lesson(db, lesson_id)
 
@@ -66,3 +67,39 @@ def get_questions(
     if mode:
         stmt = stmt.where(Question.question_type == mode)
     return db.scalars(stmt).all()
+
+
+@router.post(
+    "/{lesson_id}/questions/{question_id}/answer",
+    response_model=LessonAnswerOut,
+)
+def check_lesson_answer(
+    lesson_id: UUID,
+    question_id: UUID,
+    body: LessonAnswerIn,
+    db: Session = Depends(get_db),
+):
+    _get_published_lesson(db, lesson_id)
+    question = db.scalar(
+        select(Question).where(
+            Question.id == question_id,
+            Question.lesson_id == lesson_id,
+            Question.is_active.is_(True),
+        )
+    )
+    if question is None:
+        raise HTTPException(status_code=404, detail="Question not found")
+
+    options = db.scalars(
+        select(QuestionOption).where(QuestionOption.question_id == question_id)
+    ).all()
+    selected = next((option for option in options if option.id == body.option_id), None)
+    correct = next((option for option in options if option.is_correct), None)
+    if selected is None or correct is None:
+        raise HTTPException(status_code=422, detail="Invalid answer option")
+
+    return LessonAnswerOut(
+        correct=selected.id == correct.id,
+        correct_answer=correct.text,
+        explanation=question.explanation,
+    )

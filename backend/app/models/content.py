@@ -35,6 +35,7 @@ class Lesson(Base, TimestampMixin):
     lesson_type: Mapped[str] = mapped_column(String(30))          # kana | grammar
     level: Mapped[str | None] = mapped_column(String(10))
     objective: Mapped[str | None] = mapped_column(Text)
+    content: Mapped[dict | None] = mapped_column(JSONB)
     status: Mapped[str] = mapped_column(String(20), default="draft")  # draft|published|hidden|archived
     version: Mapped[int] = mapped_column(Integer, default=1)
     position: Mapped[int] = mapped_column(Integer, default=0)

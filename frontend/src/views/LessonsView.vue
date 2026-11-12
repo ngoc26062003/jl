@@ -10,7 +10,7 @@ const error = ref<string | null>(null)
 
 onMounted(async () => {
   try {
-    const page = await fetchLessons({ limit: 20 })
+    const page = await fetchLessons({ limit: 100, level: 'N5', lesson_type: 'grammar' })
     lessons.value = page.items
     total.value = page.total
   } catch (e) {
@@ -27,14 +27,14 @@ onMounted(async () => {
   <p v-if="loading">Đang tải...</p>
   <p v-else-if="error" class="error">Lỗi: {{ error }}</p>
   <p v-else-if="lessons.length === 0">
-    Kết nối backend và database thành công, nhưng chưa có bài học nào (total = {{ total }}).
+    Chưa có bài học ngữ pháp N5 nào (total = {{ total }}).
   </p>
 
   <ul v-else class="cards">
     <li v-for="lesson in lessons" :key="lesson.id" class="card">
       <strong>{{ lesson.position }}. {{ lesson.title }}</strong>
-      <span> ({{ lesson.lesson_type }}<template v-if="lesson.level">, {{ lesson.level }}</template>)</span>
       <div v-if="lesson.objective">{{ lesson.objective }}</div>
+      <RouterLink :to="`/lessons/${lesson.id}`">Học bài và làm bài tập →</RouterLink>
     </li>
   </ul>
 </template>
