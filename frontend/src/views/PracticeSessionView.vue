@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchItems, type StudyItem } from '../api/practice'
+import { fetchItems, savePracticeRun, type StudyItem } from '../api/practice'
+import { updatePracticeProgress } from '@/auth/session'
 import ChoiceMode from '../components/practice/ChoiceMode.vue'
 import FlashcardMode from '../components/practice/FlashcardMode.vue'
 import ResultPanel from '../components/practice/ResultPanel.vue'
@@ -26,6 +27,7 @@ const pool = ref<StudyItem[]>([])
 const queue = ref<StudyItem[]>([])
 const results = ref<Result[] | null>(null)
 const round = ref(0)
+const saveError = ref('')
 
 function begin(source: StudyItem[], applyLimit: boolean) {
   let q = source.filter((i) => !(mode === 'choice' && dir === 'term_to_meaning') || !!i.meaning_vi)
@@ -41,6 +43,26 @@ function begin(source: StudyItem[], applyLimit: boolean) {
 }
 
 const retryWrong = () => begin(results.value!.filter((r) => !r.correct).map((r) => r.item), false)
+
+async function completeRun(completed: Result[]) {
+  results.value = completed
+  saveError.value = ''
+  try {
+    const saved = await savePracticeRun({
+      mode,
+      direction: mode === 'typing' ? 'typing' : dir,
+      answers: completed.map((result) => ({
+        item_id: result.item.id,
+        given: mode === 'flashcard'
+          ? result.correct ? 'remembered' : 'forgotten'
+          : result.given ?? '',
+      })),
+    })
+    updatePracticeProgress(saved.current_streak, saved.total_stars)
+  } catch (e) {
+    saveError.value = e instanceof Error ? e.message : 'Không lưu được kết quả luyện tập.'
+  }
+}
 
 onMounted(async () => {
   try {
@@ -65,13 +87,14 @@ onMounted(async () => {
 
     <p v-if="loading" class="small">Đang tải…</p>
     <p v-else-if="error" class="pr-err">{{ error }}</p>
-    <ResultPanel v-else-if="results" :results="results" :mode="mode"
+    <ResultPanel v-if="!loading && !error && results" :results="results" :mode="mode"
       @retry-wrong="retryWrong" @restart="begin(scope, true)" @back="router.push('/practice')" />
+    <p v-if="results && saveError" class="pr-err" role="alert">{{ saveError }}</p>
 
-    <div v-else :key="round">
-      <FlashcardMode v-if="mode === 'flashcard'" :items="queue" :dir="dir" @finish="results = $event" />
-      <ChoiceMode v-else-if="mode === 'choice'" :items="queue" :pool="pool" :dir="dir" @finish="results = $event" />
-      <TypingMode v-else :items="queue" @finish="results = $event" />
+    <div v-if="!loading && !error && !results" :key="round">
+      <FlashcardMode v-if="mode === 'flashcard'" :items="queue" :dir="dir" @finish="completeRun" />
+      <ChoiceMode v-else-if="mode === 'choice'" :items="queue" :pool="pool" :dir="dir" @finish="completeRun" />
+      <TypingMode v-else :items="queue" @finish="completeRun" />
     </div>
   </main>
 </template>

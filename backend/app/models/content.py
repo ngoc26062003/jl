@@ -1,5 +1,6 @@
 import uuid
-from sqlalchemy import ForeignKey, String, Text, Integer, Boolean, UniqueConstraint
+from datetime import date
+from sqlalchemy import Date, ForeignKey, String, Text, Integer, Boolean, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin
@@ -13,9 +14,14 @@ class User(Base, TimestampMixin):
     __tablename__ = "users"
     id: Mapped[uuid.UUID] = _uuid_pk()
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
+    username: Mapped[str | None] = mapped_column(String(50), unique=True, index=True)
+    google_subject: Mapped[str | None] = mapped_column(String(255), unique=True, index=True)
+    password_hash: Mapped[str | None] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(20), default="learner")  # learner | admin
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    total_stars: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    current_streak: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    last_practiced_on: Mapped[date | None] = mapped_column(Date)
 
 
 class Category(Base, TimestampMixin):

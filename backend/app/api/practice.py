@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -5,10 +6,20 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.core.security import get_current_user
+from app.models import User
+from app.models.activity import PracticeAnswer, PracticeRun
 from app.models.practice import Deck, StudyItem
+from app.schemas.activity import PracticeRunIn, PracticeRunOut
 from app.schemas.practice import DeckOut, ItemsOut
+from app.services.grading import is_correct, normalize_answer
+from app.services.streaks import PRACTICE_TIMEZONE, award_daily_streak
 
-router = APIRouter(prefix="/practice", tags=["practice"])
+router = APIRouter(
+    prefix="/practice",
+    tags=["practice"],
+    dependencies=[Depends(get_current_user)],
+)
 Category = Literal["hiragana", "katakana", "vocab", "kanji"]
 MAX_DECKS = 50
 
@@ -69,3 +80,92 @@ def get_items(
         ).all()
 
     return {"items": items, "distractors": distractors}
+
+
+@router.post("/runs", response_model=PracticeRunOut)
+def record_run(
+    body: PracticeRunIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    item_ids = [answer.item_id for answer in body.answers]
+    if len(set(item_ids)) != len(item_ids):
+        raise HTTPException(status_code=422, detail="Câu trả lời bị trùng.")
+    if body.mode == "typing" and body.direction != "typing":
+        raise HTTPException(status_code=422, detail="Hướng luyện tập không hợp lệ.")
+    if body.mode != "typing" and body.direction == "typing":
+        raise HTTPException(status_code=422, detail="Hướng luyện tập không hợp lệ.")
+
+    items = {
+        item.id: item
+        for item in db.scalars(select(StudyItem).where(StudyItem.id.in_(item_ids)))
+    }
+    if len(items) != len(item_ids):
+        raise HTTPException(status_code=422, detail="Có mục luyện tập không hợp lệ.")
+
+    graded: list[tuple[StudyItem, str | None, bool]] = []
+    for submitted in body.answers:
+        item = items[submitted.item_id]
+        given = submitted.given or ""
+        if body.mode == "flashcard":
+            correct = given == "remembered"
+            given = "Đã nhớ" if correct else "Chưa nhớ"
+        elif body.mode == "typing":
+            correct = is_correct(given, [item.romaji, *(item.romaji_alt or [])])
+        elif body.direction == "term_to_romaji":
+            correct = normalize_answer(given) == normalize_answer(item.romaji)
+        elif body.direction == "romaji_to_term":
+            correct = normalize_answer(given) == normalize_answer(item.term)
+        else:
+            correct = bool(item.meaning_vi) and normalize_answer(given) == normalize_answer(item.meaning_vi)
+        graded.append((item, given[:300] or None, correct))
+
+    locked_user = db.scalar(
+        select(User).where(User.id == user.id).with_for_update()
+    )
+    if locked_user is None or not locked_user.is_active:
+        raise HTTPException(status_code=401, detail="Tài khoản không hoạt động.")
+    today = datetime.now(PRACTICE_TIMEZONE).date()
+    (
+        locked_user.current_streak,
+        locked_user.total_stars,
+        locked_user.last_practiced_on,
+        practiced_today,
+    ) = award_daily_streak(
+        locked_user.last_practiced_on,
+        locked_user.current_streak,
+        locked_user.total_stars,
+        today,
+    )
+
+    correct_count = sum(1 for _, _, correct in graded if correct)
+    run = PracticeRun(
+        user_id=locked_user.id,
+        mode=body.mode,
+        direction=body.direction,
+        total_questions=len(graded),
+        correct_count=correct_count,
+    )
+    db.add(run)
+    db.flush()
+    db.add_all(
+        [
+            PracticeAnswer(
+                run_id=run.id,
+                study_item_id=item.id,
+                is_correct=correct,
+                given=given,
+                position=position,
+            )
+            for position, (item, given, correct) in enumerate(graded)
+        ]
+    )
+    db.commit()
+    return PracticeRunOut(
+        id=run.id,
+        total_questions=run.total_questions,
+        correct_count=run.correct_count,
+        current_streak=locked_user.current_streak,
+        total_stars=locked_user.total_stars,
+        practiced_today=practiced_today,
+    )

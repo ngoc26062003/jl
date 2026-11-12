@@ -8,6 +8,9 @@ from sqlalchemy.engine import make_url
 class Settings(BaseSettings):
     database_url: str
     cors_origins: str = "http://localhost:5173"  # nhiều origin: cách nhau bằng dấu phẩy
+    auth_secret_key: str | None = None
+    google_client_id: str | None = None
+    bootstrap_admin_password: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

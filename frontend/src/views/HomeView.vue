@@ -1,4 +1,41 @@
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import { fetchPublicImageSlots, resolveMediaUrl } from '@/api/admin'
+import type { PublicImageSlot } from '@/api/admin'
+import BilingualTitle from '@/components/BilingualTitle.vue'
+import ImageFrame from '@/components/ImageFrame.vue'
+
+const images = ref<Record<string, string>>({})
+const imageError = ref('')
+const heroImage = () => images.value['home-hero'] ?? ''
+
+const steps = [
+  { ja: '文字', vi: 'Chữ cái', desc: 'Làm quen Hiragana và Katakana.' },
+  { ja: '文法', vi: 'Ngữ pháp', desc: 'Học cấu trúc câu cơ bản qua từng bài.' },
+  { ja: '練習', vi: 'Luyện tập', desc: 'Làm trắc nghiệm, gõ romaji để ghi nhớ.' },
+]
+
+const activities = [
+  { ja: 'ひらがな', vi: 'Bảng chữ Hiragana', desc: 'Xem ký tự, romaji và nghe phát âm.', to: '/alphabet', slot: 'activity-hiragana', label: 'Ảnh minh họa Hiragana' },
+  { ja: 'カタカナ', vi: 'Bảng chữ Katakana', desc: 'Dùng cho từ mượn và tên nước ngoài.', to: '/alphabet', slot: 'activity-katakana', label: 'Ảnh minh họa Katakana' },
+  { ja: '文法', vi: 'Bài học ngữ pháp', desc: 'Các bài học sắp xếp theo thứ tự.', to: '/lessons', slot: 'activity-grammar', label: 'Ảnh minh họa bài học' },
+  { ja: 'クイズ', vi: 'Trắc nghiệm', desc: 'Kiểm tra nhanh những gì đã học.', to: '/practice', slot: 'activity-quiz', label: 'Ảnh minh họa trắc nghiệm' },
+]
+
+onMounted(async () => {
+  try {
+    const slots: PublicImageSlot[] = await fetchPublicImageSlots()
+    images.value = Object.fromEntries(
+      slots.filter((slot) => slot.url).map((slot) => [slot.slot, resolveMediaUrl(slot.url!)]),
+    )
+  } catch (error) {
+    imageError.value = error instanceof Error ? error.message : 'Không tải được hình ảnh trang chủ.'
+  }
+})
+</script>
+
 <template>
+  <p v-if="imageError" class="error" role="status">{{ imageError }}</p>
   <!-- 1. HERO -->
   <section class="hero">
     <div class="hero__text">
@@ -10,7 +47,7 @@
         <RouterLink to="/practice" class="btn">Luyện tập</RouterLink>
       </div>
     </div>
-    <ImageFrame :src="heroImage" ratio="4 / 3" alt="Học tiếng Nhật" label="Ảnh chính trang chủ" />
+    <ImageFrame :src="heroImage()" ratio="4 / 3" alt="Học tiếng Nhật" label="Ảnh chính trang chủ" />
   </section>
 
   <!-- 2. LỘ TRÌNH -->
@@ -30,7 +67,7 @@
     <BilingualTitle ja="学習アクティビティ" vi="Hoạt động học tập" />
     <div class="grid">
       <article v-for="a in activities" :key="a.ja" class="act">
-        <ImageFrame :src="a.image" ratio="16 / 10" :alt="a.vi" :label="a.label" />
+        <ImageFrame :src="images[a.slot] ?? ''" ratio="16 / 10" :alt="a.vi" :label="a.label" />
         <BilingualTitle tag="h3" :ja="a.ja" :vi="a.vi" />
         <p>{{ a.desc }}</p>
         <RouterLink v-if="a.to" :to="a.to" class="more">Vào học →</RouterLink>
@@ -38,28 +75,7 @@
       </article>
     </div>
   </section>
-</template><script setup lang="ts">
-import BilingualTitle from '@/components/BilingualTitle.vue'
-import ImageFrame from '@/components/ImageFrame.vue'
-
-// Để chèn ảnh: đặt file vào frontend/public/images/home/ rồi điền đường dẫn vào image.
-const heroImage = '' // vd '/images/home/hero.jpg'
-
-const steps = [
-  { ja: '文字', vi: 'Chữ cái', desc: 'Làm quen Hiragana và Katakana.' },
-  { ja: '文法', vi: 'Ngữ pháp', desc: 'Học cấu trúc câu cơ bản qua từng bài.' },
-  { ja: '練習', vi: 'Luyện tập', desc: 'Làm trắc nghiệm, gõ romaji để ghi nhớ.' },
-]
-
-const activities = [
-  { ja: 'ひらがな', vi: 'Bảng chữ Hiragana', desc: 'Xem ký tự, romaji và nghe phát âm.', to: '/alphabet', image: '', label: 'Ảnh minh họa Hiragana' },
-  { ja: 'カタカナ', vi: 'Bảng chữ Katakana', desc: 'Dùng cho từ mượn và tên nước ngoài.', to: '/alphabet', image: '', label: 'Ảnh minh họa Katakana' },
-  { ja: '文法', vi: 'Bài học ngữ pháp', desc: 'Các bài học sắp xếp theo thứ tự.', to: '/lessons', image: '', label: 'Ảnh minh họa bài học' },
-  { ja: 'クイズ', vi: 'Trắc nghiệm', desc: 'Kiểm tra nhanh những gì đã học.', to: '', image: '', label: 'Ảnh minh họa trắc nghiệm' },
-]
-</script>
-
-
+</template>
 
 <style scoped>
 .section { margin-top: 48px; }

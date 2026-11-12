@@ -6,11 +6,16 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.db.session import get_db
+from app.core.security import get_current_user
 from app.models import Category, Lesson, Question, QuestionOption
 from app.schemas import LessonDetailOut, LessonOut, LessonPage, QuestionOut
 from app.schemas.lesson_answers import LessonAnswerIn, LessonAnswerOut
 
-router = APIRouter(prefix="/lessons", tags=["lessons"])
+router = APIRouter(
+    prefix="/lessons",
+    tags=["lessons"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 def _get_published_lesson(db: Session, lesson_id: UUID) -> Lesson:
