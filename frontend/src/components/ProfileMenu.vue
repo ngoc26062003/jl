@@ -54,13 +54,21 @@ const calendarCells = computed(() => {
   const today = new Date()
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 34)
   const leadingDays = (start.getDay() + 6) % 7
-  const cells: Array<{ key: string; date: Date | null }> = Array.from(
+  const cells: Array<{ key: string; date: Date | null; connectedRight: boolean }> = Array.from(
     { length: leadingDays },
-    (_, index) => ({ key: `blank-${index}`, date: null }),
+    (_, index) => ({ key: `blank-${index}`, date: null, connectedRight: false }),
   )
   for (let index = 0; index < 35; index += 1) {
     const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + index)
-    cells.push({ key: dateKey(date), date })
+    const key = dateKey(date)
+    const nextDate = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
+    const nextKey = dateKey(nextDate)
+    cells.push({
+      key,
+      date,
+      connectedRight:
+        index % 7 !== 6 && activeDays.value.has(key) && activeDays.value.has(nextKey),
+    })
   }
   return cells
 })
@@ -313,7 +321,12 @@ onBeforeUnmount(() => {
             <span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span>
           </div>
           <div class="streak-calendar" aria-label="Lịch luyện tập 35 ngày">
-            <span v-for="cell in calendarCells" :key="cell.key" class="calendar-cell">
+            <span
+              v-for="cell in calendarCells"
+              :key="cell.key"
+              class="calendar-cell"
+              :class="{ 'connected-right': cell.connectedRight }"
+            >
               <span
                 v-if="cell.date"
                 class="day-dot"
@@ -431,9 +444,10 @@ onBeforeUnmount(() => {
 .calendar-title, .history-title { margin-top: 0.2rem; }
 .calendar-weekdays, .streak-calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.3rem; text-align: center; }
 .calendar-weekdays { color: #806477; font-size: 0.68rem; }
-.calendar-cell { display: grid; place-items: center; min-height: 31px; }
+.calendar-cell { position: relative; display: grid; place-items: center; min-height: 31px; }
+.calendar-cell.connected-right::after { position: absolute; z-index: 0; left: 50%; width: calc(100% + 0.3rem); height: 4px; background: #ff8dbc; content: ""; }
 .day-dot { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: #947889; background: #f8eef3; font-size: 0.69rem; }
-.day-dot.practiced { color: #fff; background: var(--pink-deep); box-shadow: 0 0 0 3px #ffd0e4; }
+.day-dot.practiced { z-index: 1; color: #fff; background: var(--pink-deep); box-shadow: 0 0 0 3px #ffd0e4, 0 0 10px #e84d96; }
 .day-dot.today { outline: 2px solid #71234c; outline-offset: 2px; }
 .history-list { display: grid; gap: 0.35rem; max-height: 190px; overflow: auto; margin: 0; padding: 0; list-style: none; }
 .history-list li { display: flex; justify-content: space-between; gap: 0.7rem; padding: 0.45rem 0.55rem; border-radius: 8px; background: #fff0f7; font-size: 0.78rem; }
