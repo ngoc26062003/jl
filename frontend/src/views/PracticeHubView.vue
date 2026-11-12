@@ -105,8 +105,9 @@ function start() {
     <p v-if="loading" class="small">Đang tải…</p>
     <p v-else-if="error" class="pr-err">{{ error }}</p>
     <p v-else-if="decks.length === 0" class="small">
-      Chưa có nội dung. Bộ từ vựng N5 được nạp tự động khi deploy; ở local chạy
-      <code>python -m app.seed_n5</code> sau khi migrate database.
+      Chưa có nội dung cho mục này. Ở local, hãy migrate database rồi chạy
+      <code>python -m app.seed_practice</code> để nạp bảng chữ cái và
+      <code>python -m app.seed_n5</code> để nạp từ vựng N5.
     </p>
 
     <section v-for="(g, gi) in groups" :key="gi">
