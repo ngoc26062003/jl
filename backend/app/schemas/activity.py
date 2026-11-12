@@ -49,3 +49,8 @@ class PracticeHistoryEntryOut(BaseModel):
 class PracticeHistoryOut(BaseModel):
     runs: list[PracticeHistoryEntryOut]
     practice_days: list[date]
+    total_runs: int
+    total_correct: int
+    current_streak: int
+    total_stars: int
+    last_practiced_on: date | None

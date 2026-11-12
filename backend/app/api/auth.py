@@ -182,12 +182,25 @@ def practice_history(user: User = Depends(get_current_user), db: Session = Depen
     start_local = datetime.combine(start_day, time.min, tzinfo=PRACTICE_TIMEZONE)
     start_utc = start_local.astimezone(timezone.utc)
     local_run_date = func.date(func.timezone(PRACTICE_TIMEZONE.key, PracticeRun.created_at))
-    runs = db.scalars(
-        select(PracticeRun)
+    run_rows = db.execute(
+        select(
+            PracticeRun.id,
+            PracticeRun.mode,
+            PracticeRun.direction,
+            PracticeRun.total_questions,
+            PracticeRun.correct_count,
+            PracticeRun.created_at,
+        )
         .where(PracticeRun.user_id == user.id, PracticeRun.created_at >= start_utc)
         .order_by(PracticeRun.created_at.desc())
-        .limit(50)
-    ).all()
+        .limit(30)
+    ).mappings().all()
+    totals = db.execute(
+        select(
+            func.count(PracticeRun.id).label("total_runs"),
+            func.coalesce(func.sum(PracticeRun.correct_count), 0).label("total_correct"),
+        ).where(PracticeRun.user_id == user.id)
+    ).one()
     practice_days = db.scalars(
         select(local_run_date)
         .where(PracticeRun.user_id == user.id, PracticeRun.created_at >= start_utc)
@@ -195,8 +208,17 @@ def practice_history(user: User = Depends(get_current_user), db: Session = Depen
         .order_by(local_run_date)
     ).all()
     return {
-        "runs": runs,
+        "runs": [dict(row) for row in run_rows],
         "practice_days": practice_days,
+        "total_runs": totals.total_runs,
+        "total_correct": int(totals.total_correct),
+        "current_streak": active_streak(
+            user.last_practiced_on,
+            user.current_streak,
+            today,
+        ),
+        "total_stars": user.total_stars,
+        "last_practiced_on": user.last_practiced_on,
     }
 
 

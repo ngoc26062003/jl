@@ -2,8 +2,8 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import and_, func, select
+from sqlalchemy.orm import Session, aliased, selectinload
 
 from app.db.session import get_db
 from app.core.security import get_current_user
@@ -62,10 +62,11 @@ def get_questions(
     mode: Literal["multiple_choice", "typing"] | None = None,
     db: Session = Depends(get_db),
 ):
-    _get_published_lesson(db, lesson_id)
     stmt = (
         select(Question)
+        .join(Lesson, Lesson.id == Question.lesson_id)
         .where(Question.lesson_id == lesson_id, Question.is_active.is_(True))
+        .where(Lesson.status == "published")
         .options(selectinload(Question.options))
         .order_by(Question.position)
     )
@@ -84,27 +85,45 @@ def check_lesson_answer(
     body: LessonAnswerIn,
     db: Session = Depends(get_db),
 ):
-    _get_published_lesson(db, lesson_id)
-    question = db.scalar(
-        select(Question).where(
+    selected_option = aliased(QuestionOption)
+    correct_option = aliased(QuestionOption)
+    result = db.execute(
+        select(
+            selected_option.id.label("selected_id"),
+            correct_option.id.label("correct_id"),
+            correct_option.text.label("correct_answer"),
+            Question.explanation,
+        )
+        .select_from(Question)
+        .join(Lesson, Lesson.id == Question.lesson_id)
+        .outerjoin(
+            selected_option,
+            and_(
+                selected_option.question_id == Question.id,
+                selected_option.id == body.option_id,
+            ),
+        )
+        .outerjoin(
+            correct_option,
+            and_(
+                correct_option.question_id == Question.id,
+                correct_option.is_correct.is_(True),
+            ),
+        )
+        .where(
             Question.id == question_id,
             Question.lesson_id == lesson_id,
             Question.is_active.is_(True),
+            Lesson.status == "published",
         )
-    )
-    if question is None:
+    ).one_or_none()
+    if result is None:
         raise HTTPException(status_code=404, detail="Question not found")
-
-    options = db.scalars(
-        select(QuestionOption).where(QuestionOption.question_id == question_id)
-    ).all()
-    selected = next((option for option in options if option.id == body.option_id), None)
-    correct = next((option for option in options if option.is_correct), None)
-    if selected is None or correct is None:
+    if result.selected_id is None or result.correct_id is None:
         raise HTTPException(status_code=422, detail="Invalid answer option")
 
     return LessonAnswerOut(
-        correct=selected.id == correct.id,
-        correct_answer=correct.text,
-        explanation=question.explanation,
+        correct=result.selected_id == result.correct_id,
+        correct_answer=result.correct_answer,
+        explanation=result.explanation,
     )
