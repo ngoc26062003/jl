@@ -18,20 +18,20 @@ export const promptOf = (it: StudyItem, dir: Direction) => (dir === 'romaji_to_t
 export const answerOf = (it: StudyItem, dir: Direction) =>
   dir === 'term_to_romaji' ? it.romaji : dir === 'romaji_to_term' ? it.term : (it.meaning_vi ?? '')
 
-/** 1 đáp án đúng + tối đa n-1 đáp án nhiễu khác nhau, không trùng romaji với đáp án đúng. */
-export function buildChoices(correct: StudyItem, pool: StudyItem[], dir: Direction, n = 4): string[] {
+/** 1 đáp án đúng + tối đa n-1 đáp án nhiễu khác nhau. */
+export function buildChoices(correct: StudyItem, pool: StudyItem[], dir: Direction, n = 4): StudyItem[] {
   const right = answerOf(correct, dir)
   const seen = new Set([right])
-  const wrong: string[] = []
+  const wrong: StudyItem[] = []
   for (const d of shuffle(pool)) {
     if (d.id === correct.id || d.romaji === correct.romaji) continue
     const text = answerOf(d, dir)
     if (!text || seen.has(text)) continue
     seen.add(text)
-    wrong.push(text)
+    wrong.push(d)
     if (wrong.length === n - 1) break
   }
-  return shuffle([right, ...wrong])
+  return shuffle([correct, ...wrong])
 }
 
 // So romaji theo dạng chuẩn hóa để chấp nhận cả si/shi, tu/tsu, hu/fu, zi/ji...
