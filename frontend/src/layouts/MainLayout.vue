@@ -1,6 +1,8 @@
 <template>
   <header class="topbar">
-    <RouterLink to="/" class="brand">JL 日本語</RouterLink>
+    <RouterLink to="/" class="brand" aria-label="Nagoyaka - Trang chủ">
+      <img class="brand-logo" src="/Nagoyaka.webp" alt="Nagoyaka" />
+    </RouterLink>
     <nav>
       <RouterLink to="/">Trang chủ</RouterLink>
       <RouterLink to="/alphabet">Bảng chữ cái</RouterLink>
@@ -20,6 +22,21 @@
 </template>
 
 <style scoped>
+.brand {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+}
+
+.brand-logo {
+  display: block;
+  width: clamp(120px, 18vw, 190px);
+  height: 64px;
+  object-fit: contain;
+}
+
 .data-attribution {
   max-width: 960px;
   margin: 0 auto;
@@ -32,5 +49,22 @@
 
 .data-attribution a {
   color: inherit;
+}
+
+@media (max-width: 520px) {
+  .brand-logo {
+    width: 100px;
+    height: 48px;
+  }
+
+  .topbar {
+    gap: 12px;
+    padding-inline: 12px;
+  }
+
+  .topbar nav {
+    gap: 10px;
+    font-size: 0.875rem;
+  }
 }
 </style>

@@ -111,7 +111,7 @@ onMounted(start)
 </template>
 
 <style scoped>
-.jp { font-family: 'Noto Sans JP', sans-serif; }
+.jp { font-family: 'Avo', 'Noto Sans JP', sans-serif; }
 .big { font-size: 6rem; text-align: center; margin: 1rem 0; }
 .options { display: grid; grid-template-columns: repeat(2, 1fr); gap: .75rem; }
 .ok { outline: 2px solid #3fb950; }

@@ -9,6 +9,22 @@
 
 * { box-sizing: border-box; }
 
+@font-face {
+  font-family: "Avo";
+  src: url("/fonts/UTM-Avo-Bold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Avo";
+  src: url("/fonts/UTM-Avo-Bold-Italic.ttf") format("truetype");
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -19,6 +35,7 @@ body {
 
 /* ===== Chữ lớn: fill trắng + viền hồng đậm + bóng xám ===== */
 h1, h2, h3, .brand {
+  font-family: "Avo", system-ui, "Noto Sans JP", sans-serif;
   color: #fff;
   -webkit-text-stroke: 2px var(--pink-deep);
   paint-order: stroke fill;               /* vẽ viền bên dưới để fill trắng không bị mỏng */
