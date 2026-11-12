@@ -1,6 +1,6 @@
 # JL – Japanese Learning
 
-Nền tảng học tiếng Nhật tương tác (Hiragana, Katakana, ngữ pháp).
+Nền tảng học tiếng Nhật tương tác (Hiragana, Katakana, từ vựng N5).
 Stack: Vue 3 + TypeScript (sau) / FastAPI / PostgreSQL.
 
 ## Chạy backend (local)
@@ -11,8 +11,12 @@ cd backend
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
+alembic upgrade head
+python -m app.seed_n5
 python -m pytest -v                  # test logic chấm bài
 ```
+
+The N5 vocabulary deck contains 674 items and is available under **Practice → Từ vựng → N5**. Its Vietnamese glosses are machine-translated from English and may need review. The vocabulary data and its translations are licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); see [the data notice](backend/app/data/NOTICE.md) for attribution and source details. JLPT levels are community approximations, not an official JLPT list.
 
 ## Deploy backend to Fly.io
 
@@ -37,7 +41,7 @@ try {
 }
 ```
 
-The root `Dockerfile` packages only FastAPI. Fly runs `alembic upgrade head` as a release command before deploying and exposes `/health` for its service check. Once the Vercel frontend is deployed, set its exact origin (no trailing slash) as a Fly secret, then deploy:
+The root `Dockerfile` packages FastAPI and the vocabulary seed data. Fly runs database migrations and idempotently seeds N5 vocabulary as a release command before deploying, then exposes `/health` for its service check. Once the Vercel frontend is deployed, set its exact origin (no trailing slash) as a Fly secret, then deploy:
 
 ```powershell
 flyctl secrets set CORS_ORIGINS=https://your-project.vercel.app --app jl-japanese-learning
@@ -58,5 +62,5 @@ VITE_API_BASE_URL=https://jl-japanese-learning.fly.dev/api/v1
 
 ## Tiến độ
 - [x] Bước 1: logic chấm bài + test
-- [x] Bước 2: models SQLAlchemy (chưa có migration)
-- [ ] Bước 3: seed Hiragana + API bài học
+- [x] Bước 2: models SQLAlchemy + migrations
+- [x] Bước 3: seed dữ liệu N5 + luyện tập và trắc nghiệm

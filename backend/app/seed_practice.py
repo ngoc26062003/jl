@@ -26,19 +26,33 @@ def upsert_deck(db: Session, *, slug, category, level, title_jp, title_vi, posit
                     title_jp=title_jp, title_vi=title_vi, position=position)
         db.add(deck)
         db.flush()
+    else:
+        deck.category = category
+        deck.level = level
+        deck.title_jp = title_jp
+        deck.title_vi = title_vi
+        deck.position = position
     return deck
 
 
 def upsert_items(db: Session, deck: Deck, rows: list[dict]) -> int:
-    existing = {(i.term, i.reading) for i in db.scalars(select(StudyItem).where(StudyItem.deck_id == deck.id))}
+    existing = {
+        (item.term, item.reading): item
+        for item in db.scalars(select(StudyItem).where(StudyItem.deck_id == deck.id))
+    }
     added = 0
     for pos, r in enumerate(rows):
         key = (r["term"], r["reading"])
-        if key in existing:
-            continue
-        db.add(StudyItem(deck_id=deck.id, position=pos, **r))
-        existing.add(key)
-        added += 1
+        item = existing.get(key)
+        if item is None:
+            item = StudyItem(deck_id=deck.id, position=pos, **r)
+            db.add(item)
+            existing[key] = item
+            added += 1
+        else:
+            for field, value in r.items():
+                setattr(item, field, value)
+            item.position = pos
     return added
 
 

@@ -5,7 +5,7 @@ primary_region = "nrt"
   dockerfile = "Dockerfile"
 
 [deploy]
-  release_command = "alembic upgrade head"
+  release_command = "python -m app.release"
 
 [http_service]
   internal_port = 8080
