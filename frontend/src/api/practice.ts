@@ -1,3 +1,4 @@
+import { api } from './client'
 
 export type Category = 'hiragana' | 'katakana' | 'vocab' | 'kanji'
 
@@ -11,21 +12,20 @@ export interface StudyItem {
 }
 
 async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Lỗi tải dữ liệu (${res.status})`)
-  return res.json()
+  const { data } = await api.get<T>(url)
+  return data
 }
 
 export function fetchDecks(categories: Category[], level?: string) {
   const p = new URLSearchParams()
   categories.forEach((c) => p.append('category', c))
   if (level) p.set('level', level)
-  return getJson<Deck[]>(`/api/v1/practice/decks?${p}`)
+  return getJson<Deck[]>(`/practice/decks?${p}`)
 }
 
 export function fetchItems(deckIds: number[], withDistractors: boolean) {
   const p = new URLSearchParams()
   deckIds.forEach((id) => p.append('deck_ids', String(id)))
   if (withDistractors) p.set('with_distractors', 'true')
-  return getJson<{ items: StudyItem[]; distractors: StudyItem[] }>(`/api/v1/practice/items?${p}`)
+  return getJson<{ items: StudyItem[]; distractors: StudyItem[] }>(`/practice/items?${p}`)
 }
