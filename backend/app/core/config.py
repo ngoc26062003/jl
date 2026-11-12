@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     auth_secret_key: str | None = None
     google_client_id: str | None = None
     bootstrap_admin_password: str | None = None
+    reset_admin_password: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

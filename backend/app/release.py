@@ -16,6 +16,9 @@ def main() -> None:
     if not settings.auth_secret_key or len(settings.auth_secret_key) < 32:
         raise ValueError("AUTH_SECRET_KEY must be configured and at least 32 characters.")
     bootstrap_password = settings.bootstrap_admin_password
+    reset_admin_password = settings.reset_admin_password
+    if reset_admin_password and not bootstrap_password:
+        raise ValueError("BOOTSTRAP_ADMIN_PASSWORD is required to reset the admin password.")
     if bootstrap_password and len(bootstrap_password) < 12:
         raise ValueError("BOOTSTRAP_ADMIN_PASSWORD must be at least 12 characters.")
     command.upgrade(Config("alembic.ini"), "head")
@@ -36,12 +39,15 @@ def main() -> None:
                 )
             elif bootstrap_admin.role != "admin":
                 raise ValueError("The reserved bootstrap admin username is already in use.")
+            elif reset_admin_password:
+                bootstrap_admin.password_hash = hash_password(bootstrap_password)
         db.commit()
-    admin_status = (
-        "admin bootstrap configured"
-        if bootstrap_password
-        else "no admin created (BOOTSTRAP_ADMIN_PASSWORD is unset)"
-    )
+    if not bootstrap_password:
+        admin_status = "no admin created (BOOTSTRAP_ADMIN_PASSWORD is unset)"
+    elif reset_admin_password:
+        admin_status = "admin password reset"
+    else:
+        admin_status = "admin bootstrap configured"
     print(
         f"Database migration complete; kana decks ready; N5 vocabulary ready "
         f"({added} newly added); {grammar_count} N5 grammar lessons published; {admin_status}"
