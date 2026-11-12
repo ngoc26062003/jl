@@ -1,8 +1,5 @@
-from io import BytesIO
-
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
-from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -10,10 +7,9 @@ from app.core.security import require_admin
 from app.db.session import get_db
 from app.models import User
 from app.models.activity import MediaAsset
+from app.services.images import MAX_UPLOAD_BYTES, normalize_uploaded_image
 
 router = APIRouter(prefix="/media", tags=["media"])
-MAX_UPLOAD_BYTES = 5 * 1024 * 1024
-MAX_IMAGE_DIMENSION = 4096
 SLOTS = {
     "home-hero": "Ảnh chính trang chủ",
     "activity-hiragana": "Ảnh minh họa Hiragana",
@@ -84,25 +80,7 @@ async def replace_image(
     if slot not in SLOTS:
         raise HTTPException(status_code=404, detail="Vị trí ảnh không hợp lệ.")
     raw = await file.read(MAX_UPLOAD_BYTES + 1)
-    if len(raw) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="Ảnh tối đa 5 MB.")
-
-    try:
-        with Image.open(BytesIO(raw)) as image:
-            if image.format not in {"JPEG", "PNG", "WEBP"}:
-                raise HTTPException(status_code=415, detail="Chỉ chấp nhận ảnh JPEG, PNG hoặc WebP.")
-            if image.width > MAX_IMAGE_DIMENSION or image.height > MAX_IMAGE_DIMENSION:
-                raise HTTPException(status_code=413, detail="Kích thước ảnh tối đa 4096 × 4096.")
-            image = ImageOps.exif_transpose(image)
-            if image.mode not in {"RGB", "RGBA"}:
-                image = image.convert("RGBA" if "A" in image.getbands() else "RGB")
-            output = BytesIO()
-            image.save(output, format="WEBP", quality=85, method=5)
-            normalized = output.getvalue()
-    except (UnidentifiedImageError, OSError):
-        raise HTTPException(status_code=415, detail="Tệp tải lên không phải ảnh hợp lệ.") from None
-    except Image.DecompressionBombError:
-        raise HTTPException(status_code=413, detail="Ảnh có kích thước vượt giới hạn an toàn.") from None
+    normalized = normalize_uploaded_image(raw)
 
     asset = db.get(MediaAsset, slot)
     if asset is None:

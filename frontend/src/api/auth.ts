@@ -15,6 +15,20 @@ export interface PracticeSummary {
   last_practiced_on: string | null
 }
 
+export interface PracticeHistoryEntry {
+  id: string
+  mode: string
+  direction: string
+  total_questions: number
+  correct_count: number
+  created_at: string
+}
+
+export interface PracticeHistory {
+  runs: PracticeHistoryEntry[]
+  practice_days: string[]
+}
+
 export async function registerAccount(input: {
   username: string
   email: string
@@ -45,6 +59,29 @@ export function initializeSession(): AuthUser | null {
 export async function fetchPracticeSummary(): Promise<PracticeSummary> {
   const { data } = await api.get<PracticeSummary>('/auth/summary')
   return data
+}
+
+export async function fetchPracticeHistory(): Promise<PracticeHistory> {
+  const { data } = await api.get<PracticeHistory>('/auth/history')
+  return data
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await api.put('/auth/password', {
+    current_password: currentPassword,
+    new_password: newPassword,
+  })
+}
+
+export async function fetchMyAvatar(): Promise<Blob> {
+  const { data } = await api.get<Blob>('/auth/me/avatar', { responseType: 'blob' })
+  return data
+}
+
+export async function updateMyAvatar(file: File): Promise<void> {
+  const form = new FormData()
+  form.append('file', file)
+  await api.put('/auth/me/avatar', form)
 }
 
 export function logoutAccount(): void {

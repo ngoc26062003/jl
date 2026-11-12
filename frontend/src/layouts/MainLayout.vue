@@ -9,11 +9,7 @@
         <RouterLink to="/alphabet">Bảng chữ cái</RouterLink>
         <RouterLink to="/lessons">Bài học</RouterLink>
         <RouterLink to="/practice">Luyện tập</RouterLink>
-        <RouterLink v-if="authState.user.role === 'admin'" to="/admin">Quản trị</RouterLink>
-        <span class="user-summary">
-          {{ authState.user.username }} · {{ authState.user.current_streak }} ngày · {{ authState.user.total_stars }} sao
-        </span>
-        <button class="auth-link" @click="logout">Đăng xuất</button>
+        <ProfileMenu />
       </template>
       <template v-else>
         <RouterLink to="/login">Đăng nhập</RouterLink>
@@ -34,16 +30,8 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
 import { authState } from '@/auth/session'
-import { logoutAccount } from '@/api/auth'
-
-const router = useRouter()
-
-function logout() {
-  logoutAccount()
-  void router.replace('/')
-}
+import ProfileMenu from '@/components/ProfileMenu.vue'
 </script>
 
 <style scoped>
@@ -74,21 +62,6 @@ function logout() {
 
 .data-attribution a {
   color: inherit;
-}
-
-.user-summary {
-  font-size: 0.8rem;
-  white-space: nowrap;
-}
-
-.auth-link {
-  padding: 0;
-  color: var(--pink-link);
-  background: transparent;
-  border: 0;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
 }
 
 @media (max-width: 520px) {

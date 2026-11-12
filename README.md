@@ -26,6 +26,8 @@ Learners can register with a username, email, and password, or use Google Sign-I
 
 Completed practice runs are graded and stored by the API. A learner earns 1 star on the first practice day, then the current consecutive-day count in stars (2 on day two, 3 on day three); a missed calendar day resets the next practice to day one. The day boundary uses `Asia/Ho_Chi_Minh`. The admin dashboard shows active learners, correct/incorrect item totals, objective-score leaderboard, user streaks, role controls, and editable home-page images. Uploaded images are limited to 5 MB, decoded/re-encoded as WebP, and stored in PostgreSQL.
 
+The account avatar menu includes profile details, password change for password-based accounts, a recent practice history and score chart, a 35-day activity calendar, and logout. Google-only accounts continue to manage sign-in through Google.
+
 There is deliberately no built-in admin password. Set a strong `AUTH_SECRET_KEY` (at least 32 characters) as a Fly secret before deploying. `BOOTSTRAP_ADMIN_PASSWORD` (at least 12 characters) is optional for database migration, but required to create the reserved `admin` account; if configured later, deploy again to bootstrap the account. Do not use a short numeric password or commit secrets. Example PowerShell setup that keeps the initial admin password out of command history:
 
 ```powershell

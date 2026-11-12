@@ -16,6 +16,9 @@ const dashboard = ref<AdminDashboard | null>(null)
 const images = ref<ImageSlot[]>([])
 const loading = ref(true)
 const busySlot = ref('')
+const selectedSlot = ref<ImageSlot | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
+const failedPreviews = ref(new Set<string>())
 const error = ref('')
 const message = ref('')
 
@@ -29,15 +32,17 @@ function getError(errorValue: unknown): string {
 async function load() {
   loading.value = true
   error.value = ''
-  try {
-    const [stats, slots] = await Promise.all([fetchAdminDashboard(), fetchImageSlots()])
-    dashboard.value = stats
-    images.value = slots
-  } catch (reason) {
-    error.value = getError(reason)
-  } finally {
-    loading.value = false
-  }
+  const [statsResult, slotsResult] = await Promise.allSettled([
+    fetchAdminDashboard(),
+    fetchImageSlots(),
+  ])
+  if (statsResult.status === 'fulfilled') dashboard.value = statsResult.value
+  else error.value = `Không tải được thống kê: ${getError(statsResult.reason)}`
+  if (slotsResult.status === 'fulfilled') images.value = slotsResult.value
+  else error.value = [error.value, `Không tải được danh sách ảnh: ${getError(slotsResult.reason)}`]
+    .filter(Boolean)
+    .join(' ')
+  loading.value = false
 }
 
 async function toggleRole(userId: string, currentRole: 'learner' | 'admin') {
@@ -52,11 +57,22 @@ async function toggleRole(userId: string, currentRole: 'learner' | 'admin') {
   }
 }
 
-async function uploadImage(slot: ImageSlot, event: Event) {
+function chooseImage(slot: ImageSlot) {
+  selectedSlot.value = slot
+  fileInput.value?.click()
+}
+
+function previewFailed(slot: string) {
+  failedPreviews.value = new Set(failedPreviews.value).add(slot)
+}
+
+async function uploadImage(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
-  if (!file) return
+  const slot = selectedSlot.value
+  selectedSlot.value = null
+  if (!file || !slot) return
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
     error.value = 'Chỉ chọn ảnh JPEG, PNG hoặc WebP.'
     return
@@ -71,6 +87,7 @@ async function uploadImage(slot: ImageSlot, event: Event) {
   try {
     const updated = await replaceImage(slot.slot, file)
     images.value = images.value.map((image) => image.slot === slot.slot ? updated : image)
+    failedPreviews.value.delete(slot.slot)
     message.value = `Đã thay ảnh: ${slot.label}.`
   } catch (reason) {
     error.value = getError(reason)
@@ -155,27 +172,39 @@ onMounted(load)
         </div>
       </section>
 
-      <section class="card">
-        <h2>Hình ảnh trang chủ</h2>
-        <p>Chọn ảnh mới để thay thế; ảnh sẽ được kiểm tra và lưu trên máy chủ.</p>
-        <div class="image-grid">
-          <article v-for="slot in images" :key="slot.slot" class="image-card">
-            <strong>{{ slot.label }}</strong>
-            <img v-if="slot.updated_at" :src="resolveMediaUrl(slot.url)" :alt="slot.label" />
-            <div v-else class="image-placeholder">Chưa có ảnh</div>
-            <label class="role-button">
-              {{ busySlot === slot.slot ? 'Đang tải…' : 'Chọn ảnh thay thế' }}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                :disabled="!!busySlot"
-                @change="uploadImage(slot, $event)"
-              />
-            </label>
-          </article>
-        </div>
-      </section>
     </template>
+
+    <section v-if="images.length" class="card">
+      <h2>Hình ảnh trang chủ</h2>
+      <p>Chọn ảnh mới để thay thế; ảnh sẽ được kiểm tra và lưu trên máy chủ.</p>
+      <div class="image-grid">
+        <article v-for="slot in images" :key="slot.slot" class="image-card">
+          <strong>{{ slot.label }}</strong>
+          <img
+            v-if="slot.updated_at && !failedPreviews.has(slot.slot)"
+            :key="slot.updated_at"
+            :src="resolveMediaUrl(slot.url)"
+            :alt="slot.label"
+            @error="previewFailed(slot.slot)"
+          />
+          <div v-else class="image-placeholder">{{ slot.updated_at ? 'Không tải được ảnh xem trước' : 'Chưa có ảnh' }}</div>
+          <button
+            class="role-button"
+            type="button"
+            :disabled="!!busySlot"
+            @click="chooseImage(slot)"
+          >{{ busySlot === slot.slot ? 'Đang tải…' : 'Chọn ảnh thay thế' }}</button>
+        </article>
+      </div>
+      <input
+        ref="fileInput"
+        class="file-input"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        :disabled="!!busySlot"
+        @change="uploadImage"
+      />
+    </section>
   </main>
 </template>
 
@@ -189,7 +218,8 @@ onMounted(load)
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 0.55rem; border-bottom: 1px solid var(--border); text-align: left; }
 .role-button { display: inline-block; padding: 0.4rem 0.65rem; background: #fff; border: 1px solid var(--pink-deep); border-radius: 0.5rem; color: var(--pink-link); cursor: pointer; font: inherit; }
-.role-button input { display: none; }
+.role-button:disabled { opacity: 0.6; cursor: wait; }
+.file-input { display: none; }
 .image-card { display: flex; flex-direction: column; gap: 0.6rem; }
 .image-card img, .image-placeholder { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 0.6rem; background: #fff3f8; }
 .image-placeholder { display: grid; place-items: center; color: var(--text); }

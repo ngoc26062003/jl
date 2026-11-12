@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, time, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from google.auth.exceptions import GoogleAuthError
 from google.auth.transport.requests import Request
 from google.oauth2 import id_token
@@ -18,12 +18,14 @@ from app.core.security import (
 )
 from app.db.session import get_db
 from app.models import User
-from app.models.activity import PracticeRun
-from app.schemas.activity import PracticeSummaryOut
-from app.schemas.auth import AuthOut, GoogleLoginIn, LoginIn, RegisterIn, UserOut
+from app.models.activity import MediaAsset, PracticeRun
+from app.schemas.activity import PracticeHistoryOut, PracticeSummaryOut
+from app.schemas.auth import AuthOut, GoogleLoginIn, LoginIn, PasswordChangeIn, RegisterIn, UserOut
 from app.services.streaks import PRACTICE_TIMEZONE, active_streak
+from app.services.images import MAX_UPLOAD_BYTES, normalize_uploaded_image
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
+AVATAR_CONTENT_TYPE = "image/webp"
 
 
 def _auth_response(user: User) -> AuthOut:
@@ -171,3 +173,80 @@ def summary(user: User = Depends(get_current_user), db: Session = Depends(get_db
         "total_stars": user.total_stars,
         "last_practiced_on": user.last_practiced_on.isoformat() if user.last_practiced_on else None,
     }
+
+
+@router.get("/history", response_model=PracticeHistoryOut)
+def practice_history(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    today = datetime.now(PRACTICE_TIMEZONE).date()
+    start_day = today - timedelta(days=34)
+    start_local = datetime.combine(start_day, time.min, tzinfo=PRACTICE_TIMEZONE)
+    start_utc = start_local.astimezone(timezone.utc)
+    local_run_date = func.date(func.timezone(PRACTICE_TIMEZONE.key, PracticeRun.created_at))
+    runs = db.scalars(
+        select(PracticeRun)
+        .where(PracticeRun.user_id == user.id, PracticeRun.created_at >= start_utc)
+        .order_by(PracticeRun.created_at.desc())
+        .limit(50)
+    ).all()
+    practice_days = db.scalars(
+        select(local_run_date)
+        .where(PracticeRun.user_id == user.id, PracticeRun.created_at >= start_utc)
+        .group_by(local_run_date)
+        .order_by(local_run_date)
+    ).all()
+    return {
+        "runs": runs,
+        "practice_days": practice_days,
+    }
+
+
+@router.put("/password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    body: PasswordChangeIn,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not verify_password(body.current_password, user.password_hash):
+        raise HTTPException(
+            status_code=400,
+            detail="Mật khẩu hiện tại không đúng hoặc tài khoản này chỉ đăng nhập bằng Google.",
+        )
+    user.password_hash = hash_password(body.new_password)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _avatar_slot(user: User) -> str:
+    return f"avatar:{user.id}"
+
+
+@router.get("/me/avatar")
+def get_avatar(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    asset = db.get(MediaAsset, _avatar_slot(user))
+    if asset is None:
+        raise HTTPException(status_code=404, detail="Bạn chưa tải ảnh đại diện lên.")
+    return Response(
+        content=asset.data,
+        media_type=asset.content_type,
+        headers={"Cache-Control": "private, no-cache"},
+    )
+
+
+@router.put("/me/avatar")
+async def update_avatar(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    raw = await file.read(MAX_UPLOAD_BYTES + 1)
+    normalized = normalize_uploaded_image(raw)
+    slot = _avatar_slot(user)
+    asset = db.get(MediaAsset, slot)
+    if asset is None:
+        asset = MediaAsset(slot=slot, content_type=AVATAR_CONTENT_TYPE, data=normalized)
+        db.add(asset)
+    else:
+        asset.content_type = AVATAR_CONTENT_TYPE
+        asset.data = normalized
+    db.commit()
+    return {"updated_at": asset.updated_at.isoformat() if asset.updated_at else None}

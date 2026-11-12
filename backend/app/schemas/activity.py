@@ -1,7 +1,8 @@
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PracticeAnswerIn(BaseModel):
@@ -32,3 +33,19 @@ class PracticeSummaryOut(BaseModel):
     current_streak: int
     total_stars: int
     last_practiced_on: str | None
+
+
+class PracticeHistoryEntryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    mode: str
+    direction: str
+    total_questions: int
+    correct_count: int
+    created_at: datetime
+
+
+class PracticeHistoryOut(BaseModel):
+    runs: list[PracticeHistoryEntryOut]
+    practice_days: list[date]
